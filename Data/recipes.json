@@ -1,0 +1,17 @@
+[
+    {
+        "Id": 1,
+        "Name": "Ramen Noodles",
+        "Image": null,
+        "Source": null,
+        "Url": null,
+        "Description": "This and that pada boom bada bing",
+        "PrepTime": 1,
+        "CookTime": 5,
+        "TotalTime": 6,
+        "Servings": 6,
+        "Ingredients": ["Ramen Noodles", "Water", "Soy Sauce", "Green Onions", "Eggs"],
+        "Instructions": ["Boil water", "Add noodles", "Cook for 3 minutes"],
+        "SharedUsers": ["user1", "user2"]
+    }
+]

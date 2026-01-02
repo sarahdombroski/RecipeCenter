@@ -1,0 +1,21 @@
+@page "/AllRecipes"
+@using TeamProjectYay.Components.Shared
+@using TeamProjectYay.Data
+
+<h1>All Recipes</h1>
+
+<div class="recipe-grid">
+    @foreach (var recipe in Recipes)
+    {
+        <RecipeCard Recipe="@recipe" />
+    }
+</div>
+
+@code {
+    public List<Recipe> Recipes { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        Recipes = SqliteRecipeStore.LoadRecipes();
+    }
+}

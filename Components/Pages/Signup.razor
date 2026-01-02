@@ -1,0 +1,110 @@
+@page "/signup"
+@using TeamProjectYay.Data
+@rendermode InteractiveServer
+@using System.IO
+
+<PageTitle>Sign Up</PageTitle>
+
+<div class="container">
+  <form class="form">
+    <p class="title">Welcome!</p>
+    <input @bind="username" placeholder="Username" class="username input" type="text" />
+    @if (usernameTaken)
+    {
+        <p class="error">Username is already taken!</p>
+    }
+    <input @bind="password1" placeholder="Password" class="password input" type="password" />
+    <input @bind="password2" placeholder="Verify Password" class="password input" type="password" />
+    <input @bind="fname" placeholder="First Name" class="input" type="text" />
+    <input @bind="lname" placeholder="Last Name" class="input" type="text" />
+    <button class="btn" @onclick="Register" type="button">Sign Up</button>
+    @if (!string.IsNullOrEmpty(password2) && password1 != password2)
+    {
+        <p class="error">Passwords do not match!</p>
+    }
+  </form>
+  @if (showOverlay)
+    {
+        <div class="overlay">
+            <div class="popup">
+                <h2>Registration Successful!</h2>
+                <p>You will be redirected back to the home page. You can log in with your new account there</p>
+                <button class="btn" @onclick="GoHome">OK</button>
+            </div>
+        </div>
+    }
+</div>
+
+@code {
+    [Inject] private NavigationManager Nav { get; set; } = default!;
+    private string username = string.Empty;
+    private string fname = string.Empty;
+    private string lname = string.Empty;
+    private string password1 = string.Empty;
+    private string password2 = string.Empty;
+    private string rolesInput = string.Empty;
+    private bool showOverlay = false;
+    private bool usernameTaken = false;
+
+    private bool PasswordsMatch => password1 == password2;
+
+    private async void Register()
+    {
+        if (password1 != password2)
+        {
+            Console.WriteLine("Passwords do not match!");
+            return;
+        }
+        Console.WriteLine($"Starting registration for {username}");
+        var users = SqliteUserStore.LoadUsers();
+
+        if (users.Any(u => u.Username.Equals(username, StringComparison.OrdinalIgnoreCase)))
+        {
+            Console.WriteLine("Username already exists!");
+            usernameTaken = true;
+            showOverlay = false;
+            return;
+        }
+
+        var newUser = new AppUser { Username = username }; 
+        newUser.HashedPassword = SqliteUserStore.HashPassword(newUser, password1);
+        newUser.Roles.Add("User");
+        newUser.FirstName = fname;
+        newUser.LastName = lname;
+        Console.WriteLine("Assigning random profile picture");
+        newUser.ProfilePicturePath = GetRandomPicture();
+        SqliteUserStore.SaveUser(newUser);
+        Console.WriteLine("Showing success popup");
+        showOverlay = true;
+    }
+
+    private string GetRandomPicture()
+    {
+        var folderPath = "pictures" + Path.DirectorySeparatorChar + "generic";
+        var wwwFolderPath = Path.Combine("wwwroot", folderPath);
+        var imageFiles = Directory.GetFiles(wwwFolderPath, "*.*")
+                                .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+                                        || f.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                                        || f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
+                                .ToArray();
+
+        if (imageFiles.Length > 0)
+        {
+            var random = new Random();
+            int index = random.Next(imageFiles.Length);
+            Console.WriteLine($"Assigned image: {imageFiles[index]}");
+            var wwwimageFile = imageFiles[index];
+            var relativePath = wwwimageFile.Substring(wwwimageFile.IndexOf("pictures", StringComparison.OrdinalIgnoreCase));
+            return relativePath;
+        }
+        else
+        {
+            return "";
+        }
+    }
+
+    private void GoHome()
+    {
+        Nav.NavigateTo("/");
+    }
+}

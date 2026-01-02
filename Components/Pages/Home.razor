@@ -1,0 +1,51 @@
+﻿@page "/"
+@using TeamProjectYay.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.Security.Claims
+@inject NavigationManager NavManager
+@using System.IO
+@inject FileAuthStateProvider AuthProvider
+
+<PageTitle>Home</PageTitle>
+    <AuthorizeView>
+        <Authorized Context="authState">
+            <h1>Welcome to the Recipe Center, @authState.User.FindFirst("FirstName")?.Value!</h1>
+            <div class="home-boxes">
+                <a href="/AllRecipes" class="home-box all-recipes">
+                    <p class="home-box-text">View All Recipes</p>
+                </a>
+
+                <a href="/ShoppingList" class="home-box shopping-list">
+                    <p class="home-box-text">Shopping List</p>
+                </a>
+
+                <a href="/Profile" class="home-box my-recipes">
+                    <p class="home-box-text">My Recipes</p>
+                </a>
+            </div>
+        </Authorized>
+        <NotAuthorized>
+            <h1>Welcome to the Recipe Center, stranger!</h1>
+            <div class="main">
+                <div class="home-boxes">
+                    <a href="/AllRecipes" class="home-box all-recipes">
+                        <p class="home-box-text">View All Recipes</p>
+                    </a>
+
+                    <a href="/SignUp" class="home-box sign-up">
+                        <p class="home-box-text">Sign Up</p>
+                    </a>
+                </div>
+            </div>
+        </NotAuthorized>
+    </AuthorizeView>
+
+@code {
+    private List<Recipe> recipes = new List<Recipe>();
+
+    protected override async Task OnInitializedAsync()
+    {
+        recipes = SqliteRecipeStore.LoadRecipes();
+        var users = SqliteUserStore.LoadUsers();
+    }
+}

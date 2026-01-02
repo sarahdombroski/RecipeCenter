@@ -1,0 +1,223 @@
+.header {
+    position: relative;
+    padding: 10px;
+}
+
+.btn-primary {
+    /* background-color:  rgb(5, 39, 103);
+    border: none;
+    color: white; */
+    /* font-size: 1.4em; */
+    padding: 0.6em 0.8em;
+    border-radius: 1.5em;
+    border: none;
+    background-color: transparent;
+    color: #fff;
+    cursor: pointer;
+    outline: none;
+}
+
+.btn-primary:active {
+    background-color: transparent;
+}
+
+.container {
+    position: relative;
+    padding: 2px;
+    background: linear-gradient(150deg, rgb(74, 121, 248) 0%, #83cf89 80%);
+    border-radius: 1.5em;
+    transition: all 0.4s ease;
+    box-shadow: 2px 2px 3px #000000b4;
+}
+
+.container::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    margin: auto;
+    border-radius: 0.9em;
+    z-index: -10;
+    filter: blur(1.2em);
+    opacity: 0;
+    transition: opacity 0.4s ease, filter 0.4s ease;
+    background: linear-gradient(180deg, rgb(16, 80, 255) 0%, #0bb919 80%);
+}
+
+.container:hover::before, .hover-simulated::before {
+    opacity: 1;
+}
+.container:active::before {
+    filter: blur(0.2em);
+}
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: transparent;
+    z-index: 999; /* sits above page but below login box */
+}
+
+.text-danger {
+    color: red;
+    margin-top: 10px;
+    font-size: .8rem;
+}
+
+.login-box {
+    position: absolute;
+    top: 60px;
+    right: 20px;
+    background: white;
+    border: 1px solid #ccc;
+    padding: 15px;
+    width: 250px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.2);
+    z-index: 1000; /* above overlay */
+}
+
+.form-group {
+  position: relative;
+  padding: 20px 0 0;
+  width: 100%;
+  max-width: 180px;
+}
+
+.form-field {
+  font-family: inherit;
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid #9b9b9b;
+  outline: 0;
+  font-size: 17px;
+  color: #fff;
+  padding: 7px 0;
+  background: transparent;
+  transition: border-color 0.2s;
+}
+
+.form-field::placeholder {
+  color: transparent;
+}
+
+.form-field:placeholder-shown ~ .form-label {
+  font-size: 17px;
+  cursor: text;
+  top: 20px;
+}
+
+.form-label {
+  position: absolute;
+  top: 0;
+  display: block;
+  transition: 0.2s;
+  font-size: 17px;
+  color: #9b9b9b;
+  pointer-events: none;
+}
+
+.form-field:focus {
+  padding-bottom: 6px;
+  font-weight: 700;
+  border-width: 3px;
+  border-image: linear-gradient(to right, rgb(74, 121, 248) 0%, #83cf89 80%);
+  border-image-slice: 1;
+}
+
+.form-field:focus ~ .form-label {
+  position: absolute;
+  top: 0;
+  display: block;
+  transition: 0.2s;
+  font-size: 17px;
+  color: #38caef;
+  font-weight: 700;
+}
+
+/* reset input */
+.form-field:required, .form-field:invalid {
+  box-shadow: none;
+}
+
+
+
+/* From Uiverse.io by mrhyddenn */ 
+.form-group {
+  position: relative;
+  padding: 20px 0 0;
+  width: 100%;
+  max-width: 180px;
+}
+
+.form-field {
+  font-family: inherit;
+  width: 100%;
+  border: none;
+  border-bottom: 2px solid #9b9b9b;
+  outline: 0;
+  font-size: 17px;
+  color: #5e5e5e;
+  padding: 7px 0;
+  background: transparent;
+  transition: border-color 0.2s;
+}
+
+.form-field::placeholder {
+  color: transparent;
+}
+
+.form-field:placeholder-shown ~ .form-label {
+  font-size: 17px;
+  cursor: text;
+  top: 20px;
+}
+
+.form-label {
+  position: absolute;
+  top: 0;
+  display: block;
+  transition: 0.2s;
+  font-size: 17px;
+  color: #9b9b9b;
+  pointer-events: none;
+}
+
+.form-field:focus {
+  padding-bottom: 6px;
+  font-weight: 700;
+  border-width: 3px;
+  border-image: linear-gradient(to right, rgb(74, 121, 248) 0%, #83cf89 80%);
+  border-image-slice: 1;
+}
+
+.form-field:focus ~ .form-label {
+  position: absolute;
+  top: 0;
+  display: block;
+  transition: 0.2s;
+  font-size: 17px;
+  color:  rgb(74, 121, 248);
+  font-weight: 700;
+}
+
+/* reset input */
+.form-field:required, .form-field:invalid {
+  box-shadow: none;
+}
+
+
+
+
+.btn-success {
+    margin-top: 15px;
+    background-color: rgb(93, 133, 245);
+}
+
+@media (max-width: 641px) {
+    .header {
+        position: fixed;
+        right: 10px;
+    }
+}

@@ -1,0 +1,164 @@
+@page "/account"
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Identity
+@using TeamProjectYay.Data
+@inject FileAuthStateProvider UserStore
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager NavigationManager
+
+<AuthorizeView>
+    <Authorized Context="authState">
+       @if (user != null) {
+            <h1>Account Settings</h1>
+            <h2 class="helloStatement">Hello, @user.FirstName</h2>
+            <div class="userFlexbox">
+                <div class="imgDiv">
+                    <img src='@user.ProfilePicturePath' alt="Profile picture"/>
+                    <button @onclick="editPicture">Edit Picture</button>
+                </div>
+                    <div class="editDetails">
+                        <EditForm EditContext="@accountEditContext" OnValidSubmit="saveChanges">
+                            <DataAnnotationsValidator />
+                            
+                            <label>First Name:</label><br />
+                            <input @bind="user.FirstName" />
+                            <ValidationMessage For="@(() => user.FirstName)" /><br />
+
+                            <label>Last Name:</label><br />
+                            <input @bind="user.LastName" /><br />
+                            
+                            <label>Username:</label><br />
+                            <input @bind="user.Username" />
+                            <ValidationMessage For="@(() => user.Username)" /><br />
+
+                            <button type="submit">Save Changes</button> <br />
+                        </EditForm>
+                        
+                        <button class="showModal" @onclick="() => showPasswordModal = true">Change Password</button>
+                    </div>
+            </div>
+
+            @if (showPasswordModal) {
+                <div class="modalBackdrop">
+                    <div class="modalContent">
+                        <h3>Change Password</h3>
+                        <input type="password" @bind="newPassword" placeholder="New Password" />
+                        <input type="password" @bind="confirmPassword" placeholder="Confirm Password" />
+                        <button @onclick="ChangePassword">Save</button>
+                        <button @onclick="() => showPasswordModal = false">Cancel</button>
+                        <p>@statusMessage</p>
+                    </div>
+                </div>
+            }
+        }
+    </Authorized>
+
+    <NotAuthorized>
+        <h2>You must log in to see your profile.</h2>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private AppUser? user;
+
+    // verify user details
+    private EditContext? accountEditContext;
+    private ValidationMessageStore? accountMessageStore;
+
+    // edit password
+    private String? newPassword;
+    private String? confirmPassword;
+    private String statusMessage = "";
+    private bool showPasswordModal = false;
+    protected override async Task OnInitializedAsync() {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var username = authState.User.Identity?.Name;
+
+        if (username != null) {
+            user = SqliteUserStore.GetUserByUsername(username); // load user from database
+
+            accountEditContext = new EditContext(user); // add the edit context for validation
+            accountMessageStore = new ValidationMessageStore(accountEditContext);
+        }
+    }
+    private void saveChanges() {
+        if (user == null)
+            return;
+
+        if (!ValidateAccount())
+            return; // stop if validation fails
+
+        SqliteUserStore.UpdateUser(user); // update database
+        NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true); // reload information
+    }
+    private string GetRandomPicture()
+    {
+        // get images from the folder
+        var folderPath = "pictures" + Path.DirectorySeparatorChar + "generic";
+        var wwwFolderPath = Path.Combine("wwwroot", folderPath);
+        var imageFiles = Directory.GetFiles(wwwFolderPath, "*.*")
+                                .Where(f => f.EndsWith(".jpg", StringComparison.OrdinalIgnoreCase)
+                                        || f.EndsWith(".png", StringComparison.OrdinalIgnoreCase)
+                                        || f.EndsWith(".jpeg", StringComparison.OrdinalIgnoreCase))
+                                .ToArray();
+
+        if (imageFiles.Length > 0)
+        {
+            // get random file path
+            var random = new Random();
+            int index = random.Next(imageFiles.Length);
+            Console.WriteLine($"Assigned image: {imageFiles[index]}");
+            var wwwimageFile = imageFiles[index];
+            var relativePath = wwwimageFile.Substring(wwwimageFile.IndexOf("pictures", StringComparison.OrdinalIgnoreCase));
+            return relativePath; // return the path of the image to save to database
+        }
+        else
+        {
+            return "";
+        }
+    }
+    private void editPicture() {
+        if (user == null)
+            return;
+        
+        user.ProfilePicturePath = GetRandomPicture(); // doesn't reload immediately so you can choose before saving
+        SqliteUserStore.UpdateUser(user); // update image in database
+    }
+    private bool ValidateAccount() {
+        if (user == null) return false;
+
+        accountMessageStore?.Clear(); // clear all previous messages
+        bool isValid = true;
+
+        if (string.IsNullOrWhiteSpace(user.FirstName)) {
+            accountMessageStore?.Add(() => user.FirstName, "First name is required.");
+            isValid = false;
+        }
+        if (string.IsNullOrWhiteSpace(user.Username)) {
+            accountMessageStore?.Add(() => user.Username, "Username is required.");
+            isValid = false;
+        }
+
+        accountEditContext?.NotifyValidationStateChanged();
+        return isValid; // return false if something is wrong, true and pass if everything is okay
+    }
+    private void ChangePassword() {
+        if (newPassword != confirmPassword) {
+            statusMessage = "Passwords do not match"; // make sure they know what they're typing in
+            return;
+        }
+        if (user == null)
+            return;  
+        
+        user.HashedPassword = SqliteUserStore.HashPassword(user, newPassword); // hash the password
+
+        SqliteUserStore.UpdateUser(user); // update database
+
+        statusMessage = "Password changed, redirecting...";
+
+        newPassword = "";
+        confirmPassword = "";
+        showPasswordModal = false;
+        NavigationManager.NavigateTo(NavigationManager.Uri, forceLoad: true); // reload the page and information
+    }
+}

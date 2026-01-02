@@ -1,0 +1,91 @@
+h1 {
+  text-align: center;
+  margin-top: 40px;
+  Background: linear-gradient(150deg, rgb(74, 121, 248) 0%, #83cf89 80%);
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 4rem;
+}
+
+.home-boxes {
+  display: flex;
+  justify-content: space-around; /* spread boxes evenly */
+  margin-top: 6vw;
+}
+
+.home-box {
+  flex: 1;
+  margin: 0 10px;
+  padding: 100px 20px;
+  border-radius: 20px;
+  text-align: center;
+  font-size: 1.5em;
+  font-weight: bold;
+  color: white;
+  position: relative;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  transition: transform 0.3s ease;
+}
+
+.home-box p {
+  text-decoration: none;
+  color: inherit; /* inherit white text */
+  position: relative;
+  z-index: 2; /* keep text above background */
+  display: inline-block;
+  padding: 10px 20px;
+  border-radius: 12px;
+  color: white;
+  z-index: 2;
+}
+
+.home-box p::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    background: radial-gradient(
+        ellipse at center,
+        rgba(94, 93, 93, 0.6) 60%,   /* solid dark center */
+        rgba(119, 118, 118, 0) 100%     /* fade out at edges */
+    );
+    filter: blur(8px);        /* soften the gradient edge */
+    z-index: -1;    
+    pointer-events: none;
+}
+
+.home-box::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.2); /* dark overlay for readability */
+  border-radius: inherit;
+  z-index: 1;
+}
+
+.home-box:hover {
+  transform: scale(1.05);
+}
+
+/* Specific backgrounds */
+.all-recipes {
+  background-image: url("/images/home1.jpg");
+}
+
+.shopping-list {
+  background-image: url("images/home2.jpg");
+}
+
+.my-recipes {
+  background-image: url("images/home3.jpg");
+}
+
+.sign-up {
+    background-image: url("images/home4.jpg");
+}
+
+.sign-up::before {
+    background: rgba(255, 255, 255, 0.1);
+}

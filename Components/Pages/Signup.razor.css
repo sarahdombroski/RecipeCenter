@@ -1,0 +1,91 @@
+/* From Uiverse.io by HoseinParvaresh */ 
+::selection {
+  background-color: gray;
+}
+
+.container {
+  margin-top: calc(3vw + 2vh);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.form {
+  /* width: 90vw; */
+  /* height: 100vh; */
+  /* background-image: linear-gradient(to bottom, #424242, #212121); */
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  border-radius: 0.5rem;
+}
+
+.title {
+  Background: linear-gradient(150deg, rgb(74, 121, 248) 0%, #83cf89 80%);
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 6rem;
+}
+
+.input {
+  margin: 0.5rem 0;
+  padding: 1rem 0.5rem;
+  width: 20rem;
+  background-color: inherit;
+  color: #333;
+  border: none;
+  outline: none;
+  border-bottom: 2px solid transparent;
+  border-image: linear-gradient(150deg, rgb(74, 121, 248) 0%, #83cf89 80%) 1;
+  transition: all 400ms;
+}
+.input:hover {
+  scale: 103%;
+}
+.btn {
+  height: 3rem;
+  width: 20rem;
+  margin-top: 3rem;
+  background: linear-gradient(150deg, rgb(74, 121, 248) 0%, #83cf89 80%);
+  border-radius: 0.5rem;
+  border: none;
+  font-size: 1.2rem;
+  transition: all 400ms;
+  cursor: pointer;
+}
+.btn:hover {
+  background-color: antiquewhite;
+  box-shadow: none;
+  scale: 103%;
+}
+
+.error {
+    color: red;
+    font-size: 0.9rem;
+    margin-top: 0.25rem;
+}
+
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0,0,0,0.5); /* greyed out background */
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 999; /* ensure it’s on top */
+}
+
+.popup {
+    background: #fff;
+    padding: 2rem;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+.popup p, .popup .btn {
+    margin-top: 1rem;
+}

@@ -1,0 +1,84 @@
+@* @rendermode InteractiveServer *@
+@using TeamProjectYay.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthProvider
+
+
+<div class="header">
+    <div class="container @(showLoginBox ? "hover-simulated" : "")">
+        <button class="btn btn-primary" @onclick="ToggleLoginBox">Sign In</button>
+    </div>
+
+    @if (showLoginBox)
+    {
+        <div class="overlay" @onclick="CloseLoginBox"></div>
+
+        <div class="login-box">
+            <EditForm Model="loginModel" OnSubmit="HandleLogin">
+                <div class="form-group field">
+                    <input type="input" @bind="loginModel.Username" class="form-field" placeholder="Name" required="">
+                    <label for="username" class="form-label">Username</label>
+                </div>
+                <div class="form-group field">
+                    <input type="password" @bind="loginModel.Password" class="form-field" placeholder="Password" required="">
+                    <label for="password" class="form-label">Password</label>
+                </div>
+                @if (incorrectCreds)
+                {
+                    <p class="text-danger">Incorrect username or password</p>
+                }
+                <button type="submit" class="btn btn-success">Submit</button>
+                <a href="/signup" @onclick="CloseLoginBox">Create Account</a>
+            </EditForm>
+        </div>
+    }
+</div>
+
+@code {
+    [Inject] private FileAuthStateProvider Provider { get; set; }
+    @* [Inject] private AuthenticationStateProvider AuthProvider { get; set; } *@
+
+    [Inject] private NavigationManager Nav { get; set; }
+    private bool showLoginBox = false;
+    private bool incorrectCreds = false;
+    private LoginModel loginModel = new();
+
+    private void ToggleLoginBox() => showLoginBox = !showLoginBox;
+    private void CloseLoginBox() => showLoginBox = false;
+    
+    private void HandleLogin()
+    {
+        @* var Provider = AuthProvider as FileAuthStateProvider; *@
+        Console.WriteLine($"Login Provider Hash: {Provider.GetHashCode()}");
+        var users = SqliteUserStore.LoadUsers();
+        var user = users.FirstOrDefault(u => u.Username == loginModel.Username);
+        
+        Console.WriteLine($"Attempting login for {loginModel.Username}");
+
+        if (user != null && SqliteUserStore.VerifyPassword(user, loginModel.Password))
+        {
+            if (Provider == null)
+            {
+                Console.WriteLine("Provider is null!");
+                return;
+            }
+
+            Console.WriteLine($"Provider type: {Provider.GetType().FullName}");
+            Provider.SignIn(user);
+            CloseLoginBox();
+            StateHasChanged();
+        }
+        else
+        {
+            Console.WriteLine("Invalid username or password");
+            incorrectCreds = true;
+
+        }
+    }
+
+    public class LoginModel
+    {
+        public string Username { get; set; } = string.Empty;
+        public string Password { get; set; } = string.Empty;
+    }
+}

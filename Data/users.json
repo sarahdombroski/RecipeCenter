@@ -1,0 +1,32 @@
+[
+  {
+    "Username": "ryan",
+    "FirstName": "Ryan",
+    "LastName": "Sinclair",
+    "HashedPassword": "AQAAAAIAAYagAAAAECJiN/WXWbjoh5Ui2MszPIRbk81/yIlE2advhYucFd54UqaoE90g8r8NuX1Ivwoczw==",
+    "Roles": [
+      "User"
+    ],
+    "ProfilePicturePath": "pictures\\generic\\blue_smiley.png"
+  },
+  {
+    "Username": "markw123",
+    "FirstName": "mark",
+    "LastName": "wright",
+    "HashedPassword": "AQAAAAIAAYagAAAAEE/j8aXeCFoQKV7qXvbWSyI6eH6/b44/D87lChtWQbVwpPxaH7YJiLPgHzL4\u002BGggTQ==",
+    "Roles": [
+      "User"
+    ],
+    "ProfilePicturePath": "pictures\\generic\\green_smiley.png"
+  },
+  {
+    "Username": "sarah",
+    "FirstName": "Sarah",
+    "LastName": "Dombroski",
+    "HashedPassword": "AQAAAAIAAYagAAAAEMBHwtzVKKNudo3CD0LDX6EYuA15CeqA4wmkGGJzv4XTw\u002BX3crgl09xgvW4fnM6o3A==",
+    "Roles": [
+      "User"
+    ],
+    "ProfilePicturePath": "pictures/generic/blue_smiley.png"
+  }
+]

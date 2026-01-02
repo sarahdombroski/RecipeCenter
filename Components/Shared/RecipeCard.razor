@@ -1,0 +1,180 @@
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Mvc.RazorPages
+@using TeamProjectYay.Components.Shared
+@using TeamProjectYay.Data
+@inherits ComponentBase
+@inject AuthenticationStateProvider AuthProvider
+
+@* Card view: use null-safe accessors so missing data doesn't break rendering *@
+<div class="recipe-card" @onclick="OpenModal">
+    <AuthorizeView>
+        <Authorized Context="authState">
+            @if (user != null)
+            {
+                @if (ShoppingListIds.Contains(Recipe.Id) && PageContext != "ShoppingList")
+                {
+                    <p class="inshoppinglist">In Shopping List</p>
+                }
+            }
+        </Authorized>
+    </AuthorizeView>
+    <img src="@(Recipe?.Image ?? string.Empty)" alt="@(Recipe?.Name ?? string.Empty)" class="recipe-image" />
+    <h3>@(Recipe?.Name ?? "")</h3>
+    <p>Total Time: @(Recipe?.TotalTime?.ToString() ?? "")@((Recipe?.TotalTime != null) ? " mins" : "")</p>
+</div>
+
+@* Modal: only render when we have a Recipe to show *@
+@if (showModal && Recipe != null)
+{
+    <div class="rp-modal-overlay" @onclick="CloseModal">
+        <div class="rp-modal" @onclick:stopPropagation>
+            @if (ShowEditButton)
+            {
+                <button class="edit-btn" @onclick="EditRecipe" @onclick:stopPropagation>Edit Recipe</button>
+                <button class="edit-btn" @onclick="DeleteRecipe" @onclick:stopPropagation>Delete Recipe</button>
+            }
+            
+            <button class="close-btn" @onclick="CloseModal">✕</button>
+
+            <img src="@(Recipe.Image ?? string.Empty)" alt="@(Recipe.Name ?? string.Empty)" class="rp-modal-image" />
+
+            <h2>@(Recipe.Name ?? string.Empty)</h2>
+
+            @if (!string.IsNullOrWhiteSpace(Recipe.Description))
+            {
+                <p>@Recipe.Description</p>
+            }
+
+            <p><strong>Prep:</strong> @(Recipe.PrepTime?.ToString() ?? "")@((Recipe.PrepTime != null) ? " mins" : "")</p>
+            <p><strong>Cook:</strong> @(Recipe.CookTime?.ToString() ?? "")@((Recipe.CookTime != null) ? " mins" : "")</p>
+            <p><strong>Total:</strong> @(Recipe.TotalTime?.ToString() ?? "")@((Recipe.TotalTime != null) ? " mins" : "")</p>
+            <p><strong>Servings:</strong> @(Recipe.Servings?.ToString() ?? string.Empty)</p>
+
+            <h3>Ingredients</h3>
+            <ul>
+                @foreach (var item in Recipe.Ingredients ?? new List<string>())
+                {
+                    <li>@item</li>
+                }
+            </ul>
+
+            <h3>Instructions</h3>
+            <ol>
+                @foreach (var step in (Recipe.Instructions ?? "").Split('\n', StringSplitOptions.RemoveEmptyEntries))
+                {
+                    <li>@step</li>
+                }
+            </ol>
+
+            @if (!string.IsNullOrWhiteSpace(Recipe.Url))
+            {
+                <p><a href="@Recipe.Url" target="_blank">Source Link</a></p>
+            }
+            <AuthorizeView>
+                <Authorized Context="authState">
+                    @if (user != null)
+                    {
+                        @if (ShoppingListIds.Contains(Recipe.Id))
+                        {
+                            <button class="remove-btn" @onclick="() => RemoveFromShoppingList(user.UserId, Recipe.Id)">
+                            Remove from Shopping List
+                            </button>
+                        }
+                        else {
+                        <button class="add-btn" @onclick="() => AddToShoppingList(user.UserId, Recipe.Id)">
+                            Add to Shopping List
+                        </button>
+                        }
+                    }
+                </Authorized>
+            </AuthorizeView>
+        </div>
+    </div>
+}
+
+@code {
+    [Parameter] public Recipe? Recipe { get; set; }
+    [Parameter] public string? PageContext { get; set; } = string.Empty;
+    [Parameter] public bool ShowEditButton { get; set; } = false;
+    [Parameter] public EventCallback<Recipe> OnEdit { get; set; }
+    [Parameter] public EventCallback<Recipe> OnDeleted { get; set; }
+    private AppUser? user;
+    private bool showModal = false;
+    public List<int> ShoppingListIds { get; set; } = new();
+
+    private void OpenModal() => showModal = true;
+    private void CloseModal() => showModal = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthProvider.AuthenticationStateChanged += OnAuthStateChanged;
+        await InitializeAsync();
+    }
+
+    private async Task InitializeAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var username = authState.User.Identity?.Name;
+
+        if (!string.IsNullOrEmpty(username))
+        {
+            user = SqliteUserStore.GetUserByUsername(username);
+            ShoppingListIds = SqliteRecipeStore.LoadShoppingListForUser(user.UserId);
+        }
+        else
+        {
+            user = null;
+            ShoppingListIds.Clear();
+        }
+
+        StateHasChanged();
+    }
+
+    private async void OnAuthStateChanged(Task<AuthenticationState> task)
+    {
+        await InitializeAsync();
+    }
+
+    public void Dispose()
+    {
+        AuthProvider.AuthenticationStateChanged -= OnAuthStateChanged;
+    }
+
+    private async Task AddToShoppingList(int UserId, int RecipeId) {
+        if (user != null && Recipe != null) {
+            SqliteRecipeStore.AddToShoppingList(UserId, RecipeId);
+            RefreshShoppingListIds();
+        }
+    }
+
+    private async Task RemoveFromShoppingList(int UserId, int RecipeId) {
+        if (user != null && Recipe != null) {
+            SqliteRecipeStore.RemoveFromShoppingList(UserId, RecipeId);
+            RefreshShoppingListIds();
+        }
+    }
+
+    private async Task RefreshShoppingListIds() {
+        if (user != null) {
+            ShoppingListIds = SqliteRecipeStore.LoadShoppingListForUser(user.UserId);
+        }
+    }
+    private async Task EditRecipe()
+    {
+        showModal = false;
+        if (Recipe != null)
+        {
+            await OnEdit.InvokeAsync(Recipe);
+        }
+    }
+    private async Task DeleteRecipe()
+    {
+        if (Recipe != null)
+        {
+            SqliteRecipeStore.DeleteRecipe(Recipe.Id);
+
+            if (OnDeleted.HasDelegate)
+                await OnDeleted.InvokeAsync(Recipe);
+        }
+    }
+}

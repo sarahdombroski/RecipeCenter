@@ -1,0 +1,14 @@
+@page "/test"
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthProvider
+
+<h3>Test</h3>
+
+<AuthorizeView>
+    <Authorized>
+        <p>Authorized!</p>
+    </Authorized>
+    <NotAuthorized>
+        <p>Not authorized.</p>
+    </NotAuthorized>
+</AuthorizeView>

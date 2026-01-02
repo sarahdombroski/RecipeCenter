@@ -1,0 +1,43 @@
+﻿@page "/invite"
+@using TeamProjectYay.Models
+@using Microsoft.AspNetCore.Components.Forms
+@using Microsoft.AspNetCore.Components.Web
+@rendermode InteractiveServer
+
+<PageTitle>Invite Others to Cook</PageTitle>
+
+<div class="invite-container">
+    <h1>Spread the Joy of Cooking</h1>
+
+    <div class="form-container">
+        <div class="form-field">
+            <label>Your Name:</label>
+            <div>
+                <InputText @bind-Value="inviterName" placeholder="Your name" />
+            </div>
+        </div>
+
+        <div class="form-field">
+            <label>Share With:</label>
+            <div>
+                <InputText @bind-Value="inviteEmailM.UserEmail" placeholder="familyorfriendexample.com" />  
+            </div>
+        </div>
+
+        <button class="btn btn-primary" @onclick="SendInvite">Send Invitation</button>
+
+        @if (emailSent)
+        {
+            <div class="alert alert-success mt-3">
+                <p> Invitation sent successfully to @inviteEmailM.UserEmail!</p>
+            </div>
+        }
+
+        @if (!string.IsNullOrEmpty(errorMessage))
+        {
+            <div class="alert alert-danger mt-3">
+                <p> @errorMessage</p>
+            </div>
+        }
+    </div>
+</div>

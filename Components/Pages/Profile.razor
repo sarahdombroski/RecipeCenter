@@ -1,0 +1,419 @@
+@page "/Profile"
+@using System.Security.Cryptography.X509Certificates
+@using TeamProjectYay.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@using Microsoft.AspNetCore.Components.Forms
+@using System.Security.Claims
+@using System.IO
+@using System.Net.Http.Json
+@using TeamProjectYay.Components.Shared
+@inject AuthenticationStateProvider AuthProvider
+
+<AuthorizeView>
+    <Authorized Context="authState">
+        <div class="heading">
+            <h1>My Recipes</h1>
+            <button @onclick="OpenNewRecipeModal">New Recipe</button>
+        </div>
+        
+        <div class="recipe-grid">
+            @foreach (var recipe in recipes) {
+                <RecipeCard Recipe="@recipe" ShowEditButton="true" OnEdit="OpenEditModal" OnDeleted="HandleDeletedRecipe" />
+            }
+        </div>
+
+        @* Modal for creating a new recipe *@
+        @if (showNewRecipeModal) {
+            <div class="modalBackdrop">
+                <div class="modalContent">
+                    <h3>Create New Recipe</h3>
+                    
+                    <EditForm EditContext="@newRecipeEditContext" OnValidSubmit="SaveNewRecipe">
+                        <DataAnnotationsValidator />
+                        
+                        <label for="newTitle">Recipe Name:</label><br />
+                        <input type="text" @bind="newTitle" placeholder="Enter your recipe name" />
+                        <ValidationMessage For="@(() => newTitle)" /><br />
+                        
+                        <label for="newDescription">Recipe Description:</label><br />
+                        <textarea @bind="newDescription" placeholder="Enter your description here"></textarea>
+                        <ValidationMessage For="@(() => newDescription)" /><br />
+                        
+                        <label for="newPrepTime">Prep Time:</label><br />
+                        <input type="number" @bind="newPrepTime" />
+                        <ValidationMessage For="@(() => newPrepTime)" /><br />
+                        <label for="newCookTime">Cook Time:</label><br />
+                        <input type="number" @bind="newCookTime" />
+                        <ValidationMessage For="@(() => newCookTime)" /><br />
+                        <label for="newServings">Servings:</label><br />
+                        <input type="number" @bind="newServings" />
+                        <ValidationMessage For="@(() => newServings)" /><br />
+
+                        <label for="newInstructions">Instructions (one per line):</label><br />
+                        <textarea @bind="newInstructions" placeholder="Enter Instructions here"></textarea>
+                        <ValidationMessage For="@(() => newInstructions)" /><br />
+
+                        <label for="newIngredients">Ingredients (comma separated):</label><br />
+                        <input type="text" @bind="newIngredients" placeholder="Enter Ingredients here" />
+                        <ValidationMessage For="@(() => newIngredients)" /><br />
+                        
+                        <label for="newImage">Select an image:</label><br />
+                        <InputFile OnChange="HandleUpload" accept="image/*" />
+                        @if (!string.IsNullOrEmpty(message)) {
+                            <p>@message</p>
+                        }<br />
+
+                        <button type="submit">Save</button>
+                        <button type="button" @onclick="CloseNewRecipeModal">Cancel</button>
+                    </EditForm>
+                </div>
+            </div>
+        }
+
+        @* Modal for editing a recipe *@
+        @if (showEditModal) {
+            <div class="modalBackdrop">
+                <div class="modalContent">
+                    <h3>Edit Recipe</h3>
+                    <EditForm EditContext="@editRecipeEditContext" OnValidSubmit="SaveEditedRecipe">
+                        <DataAnnotationsValidator />
+                        
+                        <label for="editTitle">Recipe Name:</label><br />
+                        <input type="text" @bind="editTitle" placeholder="Enter your recipe name" />
+                        <ValidationMessage For="@(() => editTitle)" /><br />
+                        
+                        <label for="editDescription">Recipe Description:</label><br />
+                        <textarea @bind="editDescription" placeholder="Enter your description here"></textarea>
+                        <ValidationMessage For="@(() => editDescription)" /><br />
+                        
+                        <label for="editPrepTime">Prep Time:</label><br />
+                        <input type="number" @bind="editPrepTime" />
+                        <ValidationMessage For="@(() => editPrepTime)" /><br />
+                        <label for="editCookTime">Cook Time:</label><br />
+                        <input type="number" @bind="editCookTime" />
+                        <ValidationMessage For="@(() => editCookTime)" /><br />
+                        <label for="editServings">Servings:</label><br />
+                        <input type="number" @bind="editServings" />
+                        <ValidationMessage For="@(() => editServings)" /><br />
+
+                        <label for="editInstructions">Instructions (one per line):</label><br />
+                        <textarea @bind="editInstructions" placeholder="Enter Instructions here"></textarea>
+                        <ValidationMessage For="@(() => editInstructions)" /><br />
+
+                        <label for="editIngredients">Ingredients (comma separated):</label><br />
+                        <input type="text" @bind="editIngredients" placeholder="Enter Ingredients here" />
+                        <ValidationMessage For="@(() => editIngredients)" /><br />
+                        
+                        <label for="newImage">Select an image:</label><br />
+                        <InputFile OnChange="HandleEditUpload" accept="image/*" />
+                        @if (!string.IsNullOrEmpty(message)) {
+                            <p>@message</p>
+                        } <br />
+                        
+                        <button type="submit">Save</button>
+                        <button type="button" @onclick="closeEditModal">Cancel</button>
+                    </EditForm>
+                </div>
+            </div>
+        }
+
+    </Authorized>
+
+    <NotAuthorized>
+        <div class="heading">
+            @* Users should not see this page, but just in case: *@
+            <h2>You must log in to see your added recipes.</h2>
+        </div>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    private List<Recipe> recipes = new List<Recipe>(); // users recipe list
+    private AppUser? user;
+    private bool showNewRecipeModal = false;
+
+    // Adding a recipe values
+    private String newTitle = "";
+    private String newDescription = "";
+    private String newInstructions = "";
+    private String newIngredients = "";
+    private String newImage = "images/GenericRecipe.png"; // default value
+    private int newPrepTime;
+    private int newCookTime;
+    private int newServings;
+
+    // Editing a recipe values
+    private Recipe? recipeBeingEdited;
+    private bool showEditModal = false;
+    private String editTitle = "";
+    private String editDescription = "";
+    private String editInstructions = "";
+    private String editIngredients = "";
+    private int? editPrepTime;
+    private int? editCookTime;
+    private int? editServings;
+
+    // Image adding/editing values
+    private string message = "";
+    private IBrowserFile? uploadedImageFile;
+    private IBrowserFile? uploadedEditImageFile;
+
+    // Form vaildation
+    private EditContext? newRecipeEditContext;
+    private ValidationMessageStore? messageStore;
+    private EditContext? editRecipeEditContext;
+    private ValidationMessageStore? editMessageStore;
+
+    // Functions
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var username = authState.User.Identity?.Name;
+
+        if (username != null) {
+            user = SqliteUserStore.GetUserByUsername(username);
+            recipes = SqliteRecipeStore.LoadRecipesForUser(user.UserId); // load recipes for the user
+        }
+    }
+    // Saving Logic Functions
+    private async Task SaveNewRecipe()
+    {
+        // data validation
+        if (!ValidateNewRecipe())
+            return; // stop saving if its invalid
+        
+        // get the uploaded file, add it to the root directory
+        if (uploadedImageFile != null) {
+            var fileName = Path.GetRandomFileName() + Path.GetExtension(uploadedImageFile.Name);
+            var path = Path.Combine("wwwroot", "images", fileName);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+            await using FileStream fs = new(path, FileMode.Create);
+            await uploadedImageFile.OpenReadStream(5 * 1024 * 1024).CopyToAsync(fs);
+
+            newImage = $"images/{fileName}";
+        }
+
+        // add all information to a recipe
+        var newRecipe = new Recipe {
+            Name = newTitle,
+            Image = newImage,
+            Description = newDescription,
+            PrepTime = newPrepTime,
+            CookTime = newCookTime,
+            TotalTime = (newPrepTime + newCookTime),
+            Servings = newServings,
+            Instructions = newInstructions,
+            Ingredients = newIngredients
+                .Split(',', StringSplitOptions.RemoveEmptyEntries)
+                .Select(i => i.Trim())
+                .ToList()
+        };
+
+        SqliteRecipeStore.SaveRecipe(newRecipe); // save to database
+
+        if (user != null && newRecipe.Id > 0)
+        {
+            SqliteRecipeStore.LinkRecipeToUser(user.UserId, newRecipe.Id); // link recipe to user
+        }
+
+        // refresh and reload
+        if (user != null)
+            recipes = SqliteRecipeStore.LoadRecipesForUser(user.UserId);
+        newTitle = "";
+        newDescription = "";
+        newInstructions = "";
+        newIngredients = "";
+        uploadedImageFile = null;
+        newImage = "images/GenericRecipe.png";
+        showNewRecipeModal = false;
+    }
+    private async Task SaveEditedRecipe() {
+        if (recipeBeingEdited == null)
+            return;
+
+        // check for validation
+        if (!ValidateEditRecipe())
+            return;
+
+        // Save new image to root
+        if (uploadedEditImageFile != null)
+        {
+            var fileName = Path.GetRandomFileName() + Path.GetExtension(uploadedEditImageFile.Name);
+            var path = Path.Combine("wwwroot", "images", fileName);
+
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+
+            await using FileStream fs = new(path, FileMode.Create);
+            await uploadedEditImageFile.OpenReadStream(5 * 1024 * 1024).CopyToAsync(fs);
+
+            recipeBeingEdited.Image = $"images/{fileName}";
+        }
+
+        // Rewrite recipe information
+        recipeBeingEdited.Name = editTitle;
+        recipeBeingEdited.Description = editDescription;
+        recipeBeingEdited.Instructions = editInstructions;
+        recipeBeingEdited.PrepTime = editPrepTime;
+        recipeBeingEdited.CookTime = editCookTime;
+        recipeBeingEdited.Servings = editServings;
+        recipeBeingEdited.TotalTime = (editPrepTime ?? 0) + (editCookTime ?? 0);
+        recipeBeingEdited.Servings = editServings;
+        recipeBeingEdited.Ingredients = editIngredients.Split(',', StringSplitOptions.RemoveEmptyEntries).Select(i => i.Trim()).ToList();
+
+        SqliteRecipeStore.UpdateRecipe(recipeBeingEdited); // update database
+
+        if(user != null)
+            recipes = SqliteRecipeStore.LoadRecipesForUser(user.UserId); // reload
+
+        closeEditModal();
+    }
+
+    // Deleting Logic Functions
+    private void HandleDeletedRecipe(Recipe recipe) {
+        recipes.Remove(recipe); // remove from database
+    }
+    
+    // Opening and Closing Modal Logic
+    private void OpenNewRecipeModal() {
+        showNewRecipeModal = true; // open modal for adding a new recipe
+        newRecipeEditContext = new EditContext(this); // validating the fields
+        messageStore = new ValidationMessageStore(newRecipeEditContext);
+    }
+    private void CloseNewRecipeModal() {
+        showNewRecipeModal = false;
+        newRecipeEditContext = null;
+        messageStore = null;
+
+        // reset fields
+        newTitle = "";
+        newDescription = "";
+        newInstructions = "";
+        newIngredients = "";
+        uploadedImageFile = null;
+        newImage = "images/GenericRecipe.png";
+    }
+    
+    private void OpenEditModal(Recipe recipe) {
+        // Prepopulate information from recipe selected
+        recipeBeingEdited = recipe;
+        showEditModal = true;
+        
+        editTitle = recipeBeingEdited.Name;
+        editDescription = recipeBeingEdited.Description;
+        editInstructions = recipeBeingEdited.Instructions;
+        editIngredients = string.Join(", ", recipeBeingEdited.Ingredients);
+        editPrepTime = recipeBeingEdited.PrepTime;
+        editCookTime = recipeBeingEdited.CookTime;
+        editServings = recipeBeingEdited.Servings;
+
+        editRecipeEditContext = new EditContext(this);
+        editMessageStore = new ValidationMessageStore(editRecipeEditContext);
+    }
+    private void closeEditModal()
+    {
+        // enpty modal
+        showEditModal = false;
+        recipeBeingEdited = null;
+
+        editTitle = "";
+        editDescription = "";
+        editInstructions = "";
+        editIngredients = "";
+        editPrepTime = null;
+        editCookTime = null;
+        editServings = null;
+
+        editRecipeEditContext = null;
+        editMessageStore = null;
+    }
+
+    // Image upload handlers
+    private Task HandleUpload(InputFileChangeEventArgs e) {    
+       // store the image, don't input it and reload it yet, will handle after save is clicked
+        uploadedImageFile = e.File;
+        message = uploadedImageFile != null ? "Image ready to save" : "No image selected";
+        
+        return Task.CompletedTask;
+    }
+    private Task HandleEditUpload(InputFileChangeEventArgs e) {    
+        // store the image, don't input it and reload it yet, will handle after save is clicked
+        uploadedEditImageFile = e.File;
+        message = uploadedEditImageFile != null ? "Image ready to save" : "No image selected";
+        
+        return Task.CompletedTask;
+    }
+
+    // Form Validation Functions
+    private bool ValidateNewRecipe() {
+        messageStore?.Clear(); // clear previous errors
+        bool isValid = true; // if anything fails, this will become false
+        if (string.IsNullOrWhiteSpace(newTitle)) {
+            messageStore?.Add(() => newTitle, "Please enter a recipe name.");
+            isValid = false;
+        }
+         if (string.IsNullOrWhiteSpace(newDescription)) {
+            messageStore?.Add(() => newDescription, "Please describe your recipe.");
+            isValid = false;
+        }
+        if (newPrepTime <= 0) {
+            messageStore?.Add(() => newPrepTime, "Prep Time must be greater than 0.");
+            isValid = false;
+        }
+        if (newCookTime <= 0) {
+            messageStore?.Add(() => newCookTime, "Cook Time must be greater than 0.");
+            isValid = false;
+        }
+        if (newServings <= 0) {
+            messageStore?.Add(() => newServings, "Servings must be greater than 0.");
+            isValid = false;
+        }
+        if (string.IsNullOrWhiteSpace(newInstructions)) {
+            messageStore?.Add(() => newInstructions, "Please add some instructions.");
+            isValid = false;
+        }
+        if (string.IsNullOrWhiteSpace(newIngredients)) {
+            messageStore?.Add(() => newIngredients, "Please add some ingredients.");
+            isValid = false;
+        }
+
+        newRecipeEditContext?.NotifyValidationStateChanged();
+        return isValid;
+    }
+    private bool ValidateEditRecipe() {
+        editMessageStore?.Clear(); // clear previous errors
+        bool isValid = true; // if anything fails, this will become false
+        if (string.IsNullOrWhiteSpace(editTitle)) {
+            editMessageStore?.Add(() => editTitle, "Please enter a recipe name.");
+            isValid = false;
+        }
+         if (string.IsNullOrWhiteSpace(editDescription)) {
+            editMessageStore?.Add(() => editDescription, "Please describe your recipe.");
+            isValid = false;
+        }
+        if (editPrepTime <= 0) {
+            editMessageStore?.Add(() => editPrepTime, "Prep Time must be greater than 0.");
+            isValid = false;
+        }
+        if (editCookTime <= 0) {
+            editMessageStore?.Add(() => editCookTime, "Cook Time must be greater than 0.");
+            isValid = false;
+        }
+        if (editServings <= 0) {
+            editMessageStore?.Add(() => editServings, "Servings must be greater than 0.");
+            isValid = false;
+        }
+        if (string.IsNullOrWhiteSpace(editInstructions)) {
+            editMessageStore?.Add(() => editInstructions, "Please add some instructions.");
+            isValid = false;
+        }
+        if (string.IsNullOrWhiteSpace(editIngredients)) {
+            editMessageStore?.Add(() => editIngredients, "Please add some ingredients.");
+            isValid = false;
+        }
+
+        editRecipeEditContext?.NotifyValidationStateChanged();
+        return isValid;
+    }
+}

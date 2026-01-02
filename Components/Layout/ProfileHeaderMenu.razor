@@ -1,0 +1,47 @@
+@rendermode InteractiveServer
+@using Microsoft.VisualBasic
+@using TeamProjectYay.Data
+@using Microsoft.AspNetCore.Components.Authorization
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Nav
+
+<div class="profile-header-menu">
+    <AuthorizeView>
+        <Authorized Context="authState">
+            <img src='@authState.User.FindFirst("ProfilePicturePath")?.Value' alt="Profile picture" @onclick="ToggleProfileBox"/>
+            @if (showProfileBox)
+            {
+                <div class="overlay" @onclick="CloseProfileBox"></div>
+
+                <div class="profile-box">
+                    <img src='@authState.User.FindFirst("ProfilePicturePath")?.Value' alt="Profile picture" @onclick="ToggleProfileBox"/>
+                    <p class="name">@authState.User.FindFirst("FirstName")?.Value @authState.User.FindFirst("LastName")?.Value</p>
+                    <p class="username">@authState.User.Identity?.Name</p>
+                    <a href="/Profile" @onclick="CloseProfileBox">View Profile</a>
+                    <a href="/Account"@onclick="CloseProfileBox">Account Settings</a>
+                    <button class="btn btn-danger" @onclick="HandleLogout">Log Out</button>
+                </div>
+            }
+        </Authorized>
+        <NotAuthorized>
+            <LoginMenu />
+        </NotAuthorized>
+    </AuthorizeView>
+
+</div>
+
+@code {
+    private bool showProfileBox = false;
+    private void ToggleProfileBox() => showProfileBox = !showProfileBox;
+    private void CloseProfileBox() => showProfileBox = false;
+    private async void HandleLogout()
+    {
+        var provider = AuthProvider as FileAuthStateProvider;
+        if (provider != null)
+        {
+            provider.SignOut();
+            CloseProfileBox();
+            Nav.NavigateTo("/");
+        }
+    }
+}

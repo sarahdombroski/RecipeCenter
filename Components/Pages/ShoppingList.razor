@@ -1,0 +1,262 @@
+@page "/ShoppingList"
+@using Microsoft.AspNetCore.Components.Authorization
+@using TeamProjectYay.Components.Shared
+@using TeamProjectYay.Data
+@inject FileAuthStateProvider AuthProvider
+
+<AuthorizeView>
+    <Authorized Context="authState">
+        @if (ShoppingListRecipes.Any())
+        {
+            <h1>Here's your shopping list, @user.FirstName!</h1>
+            <br />
+            <h2>These are the recipes you're shopping for</h2>
+            <div class="recipe-grid">
+                @foreach (var recipe in ShoppingListRecipes)
+                {
+                    <RecipeCard Recipe="@recipe" PageContext="ShoppingList" />
+                }
+            </div>
+            <br />
+            <hr />
+            <br />
+            <div class="ingredient-box">
+                <h2>Here is what you need to make everything</h2>
+                <div class="progress-circle">
+                    <svg viewBox="0 0 36 36" class="circular-chart">
+                        <path class="circle-bg"
+                            d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                        <path class="circle"
+                            stroke-dasharray="@CheckedPercentage, 100"
+                            d="M18 2.0845
+                                a 15.9155 15.9155 0 0 1 0 31.831
+                                a 15.9155 15.9155 0 0 1 0 -31.831"/>
+                        <text x="18" y="20.35" class="percentage">@CheckedPercentage%</text>
+                    </svg>
+                </div>
+                <div class="ingredient-list">
+                    @foreach (var ingredient in ShoppingListIngredients)
+                    {
+                        <div class="ingredient-item">
+                            <label>
+                            <input type="checkbox"
+                                @bind="ingredient.IsChecked"
+                                @bind:after="() => ToggleIngredient(ingredient)" />
+                            <span class="@(ingredient.IsChecked ? "checked-item" : "")">@ingredient.Name</span>
+                        </label>
+                        </div>
+                    }
+                </div>
+            </div>
+            @if (ShoppingListIngredients.Any(i => i.IsChecked))
+            {
+                <button class="btn clear-ingredients-button" @onclick="ClearIngredientList">
+                    Uncheck all Ingredients
+                </button>
+            }
+            <button class="btn btn-danger clear-all-button" @onclick="ClearShoppingList">Empty Shopping List</button>
+        }
+        else
+        {
+            <p class="no-added-recipes">You do not have any recipes added to your shopping list!</p>
+            <p class="no-added-recipes">You can add them from the <a class="no-added-recipes-a" href "/AllRecipes">All Recipes</a> page!</p>
+        }
+
+    </Authorized>
+    <NotAuthorized>
+        <h3>Please log in to view your shopping list.</h3>
+    </NotAuthorized>
+</AuthorizeView>
+
+@code {
+    public List<Recipe> Recipes { get; set; } = new();
+    public List<int> ShoppingListIds { get; set; } = new();
+    public List<Recipe> ShoppingListRecipes { get; set; } = new();
+    public List<ShoppingIngredient> ShoppingListIngredients { get; set; } = new();
+    private AppUser? user;
+    private int CheckedPercentage =>
+    ShoppingListIngredients.Count == 0
+        ? 0
+        : (int)Math.Round(
+            (double)ShoppingListIngredients.Count(i => i.IsChecked) /
+            ShoppingListIngredients.Count * 100);
+
+    protected override async Task OnInitializedAsync()
+    {
+        AuthProvider.AuthenticationStateChanged += OnAuthStateChanged;
+        await InitializeAsync();
+    }
+
+    private async Task InitializeAsync()
+    {
+        var authState = await AuthProvider.GetAuthenticationStateAsync();
+        var username = authState.User.Identity?.Name;
+
+        if (!string.IsNullOrEmpty(username))
+        {
+            user = SqliteUserStore.GetUserByUsername(username);
+            ShoppingListIds = SqliteRecipeStore.LoadShoppingListForUser(user.UserId);
+        }
+        else
+        {
+            user = null;
+            ShoppingListIds.Clear();
+        }
+
+        Recipes = SqliteRecipeStore.LoadRecipes();
+        ShoppingListRecipes = Recipes.Where(r => ShoppingListIds.Contains(r.Id)).ToList();
+        ConsolidateIngredients();
+
+        StateHasChanged();
+    }
+
+    private async void OnAuthStateChanged(Task<AuthenticationState> task)
+    {
+        await InitializeAsync();
+    }
+
+    public void Dispose()
+    {
+        AuthProvider.AuthenticationStateChanged -= OnAuthStateChanged;
+    }
+
+    public void ConsolidateIngredients()
+    {
+        ShoppingListIngredients.Clear();
+
+        // ingredientId -> aggregate
+        var ingredientMap = new Dictionary<int, (string Name,
+                                                Dictionary<string,int> Units,
+                                                HashSet<int> RecipeIds)>();
+
+        foreach (var recipe in ShoppingListRecipes)
+        {
+            foreach (var item in recipe.Ingredients)
+            {
+                var parts = item.Split('-', 2);
+                if (parts.Length != 2) continue;
+
+                var quantityPart = parts[0].Trim();
+                var namePart = parts[1].Trim();
+                var tokens = quantityPart.Split(' ', 2);
+
+                var ingredientId = SqliteRecipeStore.LookupIngredientId(namePart);
+
+                if (!ingredientMap.ContainsKey(ingredientId))
+                {
+                    ingredientMap[ingredientId] = (namePart, new Dictionary<string,int>(), new HashSet<int>());
+                }
+
+                // record the recipeId this ingredient came from
+                ingredientMap[ingredientId].RecipeIds.Add(recipe.Id);
+
+                // accumulate quantities per unit
+                if (int.TryParse(tokens[0], out int qty))
+                {
+                    var unit = tokens.Length > 1 ? tokens[1] : string.Empty;
+                    var units = ingredientMap[ingredientId].Units;
+                    units[unit] = units.TryGetValue(unit, out var existing) ? existing + qty : qty;
+                }
+                else
+                {
+                    var units = ingredientMap[ingredientId].Units;
+                    units[string.Empty] = units.TryGetValue(string.Empty, out var existing) ? existing + 1 : 1;
+                }
+            }
+        }
+
+        // Build final ShoppingListIngredients
+        foreach (var kvp in ingredientMap)
+        {
+            var ingredientId = kvp.Key;
+            var name = kvp.Value.Name;
+            var units = kvp.Value.Units;
+            var recipeIds = kvp.Value.RecipeIds;
+
+            // Compose display name like "5 cups, 3 tbsp Flour"
+            var unitStrings = units
+                .Where(u => u.Key != string.Empty)
+                .Select(u => $"{u.Value} {u.Key}")
+                .ToList();
+
+            if (units.ContainsKey(string.Empty))
+                unitStrings.Add($"{units[string.Empty]} {name}");
+
+            var displayName = string.Join(", ", unitStrings);
+            if (!units.ContainsKey(string.Empty))
+                displayName += $" {name}";
+
+            // Determine checked state: true if any recipe has this ingredient checked for this user
+            bool isChecked = false;
+            if (user != null)
+            {
+                foreach (var rid in recipeIds)
+                {
+                    if (SqliteRecipeStore.IsIngredientChecked(user.UserId, rid, ingredientId))
+                    {
+                        isChecked = true;
+                        break;
+                    }
+                }
+            }
+
+            // Choose a representative recipeId for FK validity; keep the set if you plan multi-update on toggle
+            var representativeRecipeId = recipeIds.First();
+
+            ShoppingListIngredients.Add(new ShoppingIngredient
+            {
+                RecipeId = representativeRecipeId,
+                IngredientId = ingredientId,
+                Name = displayName,
+                IsChecked = isChecked
+            });
+        }
+    }
+
+
+
+
+    private void ToggleIngredient(ShoppingIngredient ingredient)
+    {
+        SqliteRecipeStore.UpdateIngredientChecked(
+            user.UserId,
+            ingredient.RecipeId,
+            ingredient.IngredientId,
+            ingredient.IsChecked
+        );
+    }
+
+    private void ClearIngredientList()
+    {
+        if (user == null) return;
+
+        // Uncheck all ingredients in the database
+        SqliteRecipeStore.ClearUserIngredients(user.UserId);
+
+        // Uncheck all in memory/UI
+        foreach (var ingredient in ShoppingListIngredients)
+        {
+            ingredient.IsChecked = false;
+        }
+
+        StateHasChanged();
+    }
+
+    private void ClearShoppingList()
+    {
+        if (user == null) return;
+
+        // Unmark all recipes and ingredients in the database
+        SqliteRecipeStore.ClearShoppingListForUser(user.UserId);
+        SqliteRecipeStore.ClearUserIngredients(user.UserId);
+
+        // Clear from memory/UI
+        ShoppingListIds.Clear();
+        ShoppingListRecipes.Clear();
+        ShoppingListIngredients.Clear();
+
+        StateHasChanged();
+    }
+}

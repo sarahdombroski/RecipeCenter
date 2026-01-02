@@ -1,0 +1,15 @@
+.recipe-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 20px;
+}
+
+h1 {
+  text-align: center;
+  margin-top: 40px;
+  margin-bottom: 40px;
+  Background: linear-gradient(150deg, rgb(74, 121, 248) 0%, #83cf89 80%);
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-size: 4rem;
+}
